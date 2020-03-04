@@ -7,6 +7,8 @@ library(foreach)
 library(doParallel)
 library(doRNG)
 
+# Setting Approach, Number Of Replications and Cores -----------------------------------------
+
 # approach to use
 approach <- "JOC_FIML"
 # approach <- "FCS_WLSMV"
@@ -15,7 +17,9 @@ approach <- "JOC_FIML"
 # approach <- "EMB_MLM"
 
 # number of cores to use
-numCore <- 2
+numCore <- 1
+# number of replications in each condition
+itert <- 1
 registerDoParallel(cores = numCore)
 
 # for replicability
@@ -30,13 +34,13 @@ mxOption(NULL, "Default optimizer", "SLSQP")  # CSOLNP has trouble with threshol
 
 # Set Manipulated Dataset Factors -----------------------------------------
 # sample size
-sampleSize <- c(200, 1000)
+sampleSize <- c(500)
 # mechanism of missingness ["MCAR", "MAR"]
 missingMech <- c("MCAR")
 # proportion of missing data
-missingProp <- c(0.1, 0.2, 0.4)
+missingProp <- c(0.1)
 # number of categories of ordinal data
-numCat <- c(2, 3, 5, 7)
+numCat <- c(2, 3)
 # threshold for ordinal variables
 # symmetrical
 symThreshold2 <- c(0)
@@ -213,8 +217,7 @@ for (condition in 1:nrow(conditionsMatrix))
   assign(
     x = name,
     foreach(
-      # this stands for 10 replication in each core
-      iterdiv = rep(1, numCore),
+      iterdiv = rep(itert, numCore),
       .packages = c("semTools", "OpenMx", "mice", "Amelia")
     ) %dorng% replicate(
       gen.analyze.Data(
