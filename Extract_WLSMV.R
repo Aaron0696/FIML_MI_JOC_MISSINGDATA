@@ -63,7 +63,7 @@ extract <- function(segment)
         mengrubin <- tryCatch({
           lavTestLRT.mi(segment[[core]][[a]],
                         asymptotic = TRUE, 
-                        test = "meng.rubin")
+                        test = "D3")
         }, error = function(e){
           rep(NA,12)
         })
@@ -91,7 +91,7 @@ extract <- function(segment)
         Lirobust <- tryCatch({
           lavTestLRT.mi(segment[[core]][[a]],
                         asymptotic = TRUE, 
-                        test = "Li.et.al",
+                        test = "D2",
                         pool.robust = TRUE)
         }, error = function(e){
           rep(NA,12)
@@ -120,7 +120,7 @@ extract <- function(segment)
         Li <- tryCatch({
           lavTestLRT.mi(segment[[core]][[a]],
                         asymptotic = TRUE, 
-                        test = "Li.et.al", 
+                        test = "D2", 
                         pool.robust = FALSE)
         }, error = function(e){
           rep(NA,12)
