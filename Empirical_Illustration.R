@@ -247,7 +247,7 @@ outputMICE.MLM <- cfa.mi(
   model = model,
   data = miceImp,
   std.lv = TRUE,
-  std.ov = TRUE,
+  # std.ov = TRUE,
   estimator = "MLM"
 )
 
@@ -302,7 +302,7 @@ outputAmelia.MLM <- cfa.mi(
   model = model,
   data = ameliaImp,
   std.lv = TRUE,
-  std.ov = TRUE,
+  # std.ov = TRUE,
   estimator = "MLM"
 )
 
