@@ -9,6 +9,7 @@ library(Amelia)
 library(OpenMx)
 # for data wrangling
 library(reshape2)
+library(dplyr)
 # for visualization
 library(ggplot2)
 library(corrplot)
@@ -183,7 +184,7 @@ missmatrix <- as.data.frame(missmatrix, row.names = FALSE)
 # rename the last column to count which represents the frequency of the specific pattern
 names(missmatrix)[ncol(missmatrix)] <- "Count"
 # show top 5 in decreasing order of count
-head(missmatrix[order(missmatrix[,grep("Count", names(missmatrix))], decreasing = TRUE),])
+head(missmatrix[order(missmatrix[,grep("Count", names(missmatrix))], decreasing = TRUE),],10)
 
 # FCS-WLSMV ---------------------------------------------------------------
 model <- '
@@ -219,44 +220,9 @@ summary(outputMICE)
 
 # get chi-square statistics
 lavTestLRT.mi(outputMICE,
-              asymptotic = TRUE)
-
-# FCS-MLM ---------------------------------------------------------------
-model <- '
-PF =~ CGrip + LiftD + GraspD + PshPlD
-'
-
-# FCS with mice using only analyzed variables
-miceImputation <- mice(mydata.cts[,grep("Lift|Grasp|PshPl|CGrip",
-                                    names(mydata.cts))],
-                       m = 50,
-                       seed = 846193)
-# creating an object to store the 50 imputed datasets
-miceImp <- NULL
-
-# assessing convergence
-plot(miceImputation)
-# collating imputed datasets
-for (i in 1:50){
-  miceImp[[i]] <- complete(miceImputation,
-                           action = i,
-                           inc = FALSE)
-}
-# run lavaan with imputed data using runMI
-outputMICE.MLM <- cfa.mi(
-  model = model,
-  data = miceImp,
-  std.lv = TRUE,
-  # std.ov = TRUE,
-  estimator = "MLM"
-)
-
-# view results
-summary(outputMICE.MLM)
-
-# get chi-square statistics
-lavTestLRT.mi(outputMICE.MLM,
-              asymptotic = TRUE)
+              test = "D2",
+              asymptotic = TRUE,
+              pool.robust = FALSE)
 
 # EMB-WLSMV ---------------------------------------------------------------
 model <- '
@@ -284,36 +250,52 @@ summary(outputAmelia)
 
 # get chi-square statistics
 lavTestLRT.mi(outputAmelia,
+              test = "D2",
+              pool.robust = TRUE,
               asymptotic = TRUE)
 
-# EMB-MLM ---------------------------------------------------------------
+# FCSLV-WLSMV ---------------------------------------------------------------
 model <- '
 PF =~ CGrip + LiftD + GraspD + PshPlD
 '
-# EMB with Amelia using only analyzed variables
-ameliaImputation <- amelia(mydata.cts[,grep("Lift|Grasp|PshPl|CGrip",
-                                        names(mydata.cts))],
-                           m = 50)
-# Collating imputed datasets
-ameliaImp <- ameliaImputation$imputations
+# extract data to be fed into blimp
+temp <- data.frame(lapply(mydata,as.numeric))
+# replace NA with numeric code for missingness
+temp[is.na(temp)] <- 999
+temp %>% select(-ID) %>%
+  write.table(file = "empiricalblimp.csv", sep = ",", col.names = FALSE, row.names = FALSE)
+
+# read imputed dataset
+blimp_data <- read.csv("blimpout.csv")
+names(blimp_data) <- c("IMP","CGrip","LiftD","GraspD","PshPlD","Age")
+blimpimp <- NULL
+# collating imputed datasets
+for (i in 1:50)
+{
+  blimpimp[[i]] <- subset(blimp_data, blimp_data$IMP == i)
+  # change to ordered
+  blimpimp[[i]]$LiftD <- factor(blimpimp[[i]]$LiftD, levels = 1:3, ordered = TRUE)
+  blimpimp[[i]]$GraspD <- factor(blimpimp[[i]]$GraspD, levels = 1:3, ordered = TRUE)
+  blimpimp[[i]]$PshPlD <- factor(blimpimp[[i]]$PshPlD, levels = 1:3, ordered = TRUE)
+}
 
 # run lavaan with imputed data using runMI
-outputAmelia.MLM <- cfa.mi(
+outputblimpWLSMV <- cfa.mi(
   model = model,
-  data = ameliaImp,
+  data = blimpimp,
   std.lv = TRUE,
-  # std.ov = TRUE,
-  estimator = "MLM"
+  estimator = "WLSMV",
+  parameterization = "theta"
 )
 
 # view results
-summary(outputAmelia.MLM)
+summary(outputblimpWLSMV)
 
 # get chi-square statistics
-lavTestLRT.mi(outputAmelia.MLM,
+lavTestLRT.mi(outputblimpWLSMV,
+              test = "D2",
+              pool.robust = TRUE,
               asymptotic = TRUE)
-
-
 
 # JOC-FIML ----------------------------------------------------------------
 # OpenMx
@@ -369,7 +351,7 @@ OMXmodel <- mxModel("Simulated",
 # fitting hypothesized model
 factorFit <- mxRun(OMXmodel)
 # fitting saturated and independence model
-satFit <- omxSaturatedModel(factorFit, run=TRUE)
+satFit <- omxSaturatedModel(factorFit, run = TRUE)
 
 # Comparing Parameter Estimates -------------------------------------------
 
@@ -383,18 +365,6 @@ parEst$est.OMX <- 999
 parEst$se.OMX <- 999
 # keep only rows regarding factor loadings
 parEst.FCS.WLSMV <- subset(parEst,
-                 parEst$op == "=~")
-
-###        get FCS-MLM parameter estimates
-parEst <- summary(outputMICE.MLM, standardized = TRUE)
-# only keep the estimates and SE
-parEst <- parEst[,grep("lhs|op|rhs|est|se", 
-                       names(parEst))]
-# create new columns for OpenMx estimates
-parEst$est.OMX <- 999
-parEst$se.OMX <- 999
-# keep only rows regarding factor loadings
-parEst.FCS.MLM <- subset(parEst,
                            parEst$op == "=~")
 
 # get EMB-WLSMV parameter estimates
@@ -407,42 +377,38 @@ parEst$est.OMX <- 999
 parEst$se.OMX <- 999
 # keep only rows regarding factor loadings
 parEst.EMB.WLSMV <- subset(parEst,
-                         parEst$op == "=~")
+                           parEst$op == "=~")
 
-###         get EMB-MLM parameter estimates
-parEst <- summary(outputAmelia.MLM, standardized = TRUE)
+# get Blimp-WLSMV parameter estimates
+parEst <- summary(outputblimpWLSMV, standardized = TRUE)
 # only keep the estimates and SE
 parEst <- parEst[,grep("lhs|op|rhs|est|se", 
                        names(parEst))]
-
-###        create new columns for OpenMx estimates
+# create new columns for OpenMx estimates
 parEst$est.OMX <- 999
 parEst$se.OMX <- 999
 # keep only rows regarding factor loadings
-parEst.EMB.MLM <- subset(parEst,
-                           parEst$op == "=~")
+parEst.outputblimpWLSMV <- subset(parEst,
+                                  parEst$op == "=~")
 
 ###        save summary of OpenMx as a separate object
 sumOMX <- summary(factorFit)
 
 # combine all factor loadings and se into one dataframe
 parEst.all <- cbind(parEst.FCS.WLSMV[,1:5],
-                    parEst.FCS.MLM[,4:5],
                     parEst.EMB.WLSMV[,4:5],
-                    parEst.EMB.MLM[,4:5])
+                    parEst.outputblimpWLSMV[,4:5])
 # rename column names
 names(parEst.all) <- c("lhs",
                        "op",
                        "rhs",
                        "est.FCS.WLSMV",
                        "se.FCS.WLSMV",
-                       "est.FCS.MLM",
-                       "se.FCS.MLM",
                        "est.EMB.WLSMV",
                        "se.EMB.WLSMV",
-                       "est.EMB.MLM",
-                       "se.EMB.MLM")
-     
+                       "est.FCSLV.WLSMV",
+                       "se.FCSLV.WLSMV")
+
 # add JOC-FIML               
 parEst.all$est.JOC.FIML[1:4] <- sumOMX[["parameters"]]$Estimate[1:4]
 parEst.all$se.JOC.FIML[1:4] <- sumOMX[["parameters"]]$Std.Error[1:4]

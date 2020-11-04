@@ -1,0 +1,13 @@
+DATA: empiricalblimp.csv;
+VARIABLES: CGrip LiftD GraspD PshPlD Age;
+NOMINAL: ;
+ORDINAL: LiftD GraspD PshPlD;
+MISSING: 999;
+FCS: CGrip LiftD GraspD PshPlD;
+SEED: 15313;
+NIMPS: 50;
+BURN: 5000;
+THIN: 2500;
+CHAINS: 4 processors 4;
+OUTFILE: blimpout.csv;
+OPTIONS: psr latent;
