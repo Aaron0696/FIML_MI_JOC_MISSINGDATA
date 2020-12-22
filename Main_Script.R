@@ -11,20 +11,23 @@ library(doRNG)
 
 # approach to use
 approach <- "JOC_FIML"
+approach <- "FCS_FIML"
+approach <- "EMB_FIML"
+# approach <- "FCSLV_FIML" # TODO
 # approach <- "FCS_WLSMV"
-# approach <- "FCS_MLM"
+# approach <- "FCS_MLM" # no longer included in the manuscript
 # approach <- "EMB_WLSMV"
-# approach <- "EMB_MLM"
+# approach <- "EMB_MLM" # no longer included in the manuscript
 
 # number of cores to use
-numCore <- 1
-# number of replications in each condition
-itert <- 1
+numCore <- 3
+# number of replications in each condition, in each core, e.g if core = 4 and itert = 3, 12 replications will be ran for each condition
+itert <- 4
 registerDoParallel(cores = numCore)
 
 # for replicability
 set.seed(123456)
-# load function used for data generation
+# load functions used for data generation
 source("genData.R")
 
 # obtained from "Multivariate normal maximum
@@ -169,43 +172,39 @@ source(paste(approach,
              sep = ""))
 
 # function to bundle gen.Data and analyze.Data
-gen.analyze.Data <-
-  function(sampleSize,
-           missingMech,
-           missingProp,
-           numCat,
-           aSym)
+gen.analyze.Data <-function(sampleSize,missingMech,missingProp,numCat,aSym)
+{
+  switch <- FALSE
+  while (switch == FALSE)
   {
-    switch <- FALSE
-    while (switch == FALSE)
+    simDataMissing <-
+      gen.Data(sampleSize, missingMech, missingProp, numCat, aSym)
+
+    # Amelia produces an error
+      # Error in `contrasts<-`(`*tmp*`, value = contr.funs[1 + isOF[nn]]) :
+      # contrasts can be applied only to factors with 2 or more levels
+    # Seems like this error is caused because some part of Amelia does listwise
+    # deletion first and if the dataset from listwise deletion contains a factor with only
+    # 1 level, it produces this error
+    # I have put a temporary fix by regenerating another dataset if this occurs
+    test <- na.omit(simDataMissing)
+    o1test <- length(unique(test$o1))
+    o2test <- length(unique(test$o2))
+    o3test <- length(unique(test$o3))
+
+    if (o1test == numCat & o2test == numCat & o3test == numCat)
     {
-      simDataMissing <-
-        gen.Data(sampleSize, missingMech, missingProp, numCat, aSym)
-      
-      # Amelia produces an error
-        # Error in `contrasts<-`(`*tmp*`, value = contr.funs[1 + isOF[nn]]) : 
-        # contrasts can be applied only to factors with 2 or more levels
-      # Seems like this error is caused because some part of Amelia does listwise
-      # deletion first and if the dataset from listwise deletion contains a factor with only
-      # 1 level, it produces this error
-      # For now I have put a temporary fix by regenerating another dataset if this occurs
-      test <- na.omit(simDataMissing)
-      o1test <- length(unique(test$o1))
-      o2test <- length(unique(test$o2))
-      o3test <- length(unique(test$o3))
-      
-      if (o1test == numCat & o2test == numCat & o3test == numCat)
-      {
-        switch <- TRUE
-      }
+
+      switch <- TRUE
     }
-    
-    fitInfo <- list(fit = analyze.Data(simDataMissing,
-                                       numCat),
-                    data = simDataMissing)
-    # denPlot = plot.Data(simDataMissing))
-    return(fitInfo)
   }
+
+  fitInfo <- list(fit = analyze.Data(simDataMissing,
+                                     numCat),
+                  data = simDataMissing)
+  # denPlot = plot.Data(simDataMissing))
+  return(fitInfo)
+}
 
 # run gen.analyze.Data for each row of conditionsMatrix
 # with the amount of replication defined by the iterdiv argument
@@ -249,6 +248,10 @@ if (grep("MLM", approach) == 1) {
 if (grep("WLSMV", approach) == 1) {
   source("Extract_WLSMV.R")
 }
+if (approach == "FCS_FIML"|approach == "EMB_FIML") {
+  source("Extract_FIML.R")
+}
+
 # summarize the results from each output file into a
 # dataframe with each row representing one
 # replication in the specific condition
