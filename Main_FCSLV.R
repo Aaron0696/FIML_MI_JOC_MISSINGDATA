@@ -10,8 +10,8 @@ library(doRNG)
 # Setting Approach, Number Of Replications and Cores -----------------------------------------
 
 # approach to use
-approach <- "FCSLV_WLSMV" # todo
-# approach <- "FCSLV_FIML" # done
+approach <- "FCSLV_WLSMV"
+# approach <- "FCSLV_FIML"
 
 # number of cores to use
 numCore <- 3
