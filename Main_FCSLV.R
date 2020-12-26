@@ -10,13 +10,14 @@ library(doRNG)
 # Setting Approach, Number Of Replications and Cores -----------------------------------------
 
 # approach to use
-approach <- "FSCLV_WLSMV" # todo
-approach <- "FCSLV_FIML" # done
+approach <- "FCSLV_WLSMV" # todo
+# approach <- "FCSLV_FIML" # done
 
 # number of cores to use
 numCore <- 3
 # number of replications in each condition, in each core, e.g if core = 4 and itert = 3, 12 replications will be ran for each condition
 itert <- 4
+numCore <- itert # trick the extract function to loop through each iteration rather than each core for FCSLV-WLSMV
 registerDoParallel(cores = numCore)
 
 # for replicability
@@ -221,7 +222,7 @@ source(paste0(approach, ".R")) # load analyze.Data() function
 
 for (condition in 1:nrow(conditionsMatrix))
 {
-  name <- paste("FCSLV_FIML_output", condition, sep = "")
+  name <- paste(approach, "_output", condition, sep = "")
   mylist <- list() # list to contain the outputs of each iteration
   for (r in 1:itert)
   {
@@ -235,8 +236,40 @@ for (condition in 1:nrow(conditionsMatrix))
       }))
     mylist[[r]] <- fitInfo
     # save output to an RDS file
-    saveRDS(t(as.data.frame(mylist)), paste(name,
-                                "RDS",
-                                sep = "."))
+    saveRDS(mylist, paste(name,
+                          "RDS",
+                          sep = "."))
   }
 }
+
+# Extract data if FCSLV_WLSMV is used -------------------------------------
+if(approach == "FCSLV_WLSMV")
+{
+  source("Extract_WLSMV.R")
+  # summarize the results from each output file into a
+  # dataframe with each row representing one
+  # replication in the specific condition
+  for(num in 1:nrow(conditionsMatrix)){
+    # create the name of the output
+    outname <- paste(approach, "_output", num, sep = "")
+    # read the file in and assign it to the segment object
+    segment <- readRDS(paste(outname, ".RDS", sep = ""))
+    df <- extract(segment)
+    # add in columns detailing the factors used to generate
+    # the data
+    df$sampleSize <- conditionsMatrix$sampleSize[num]
+    df$missingProp <- conditionsMatrix$missingProp[num]
+    df$numCat <- conditionsMatrix$numCat[num]
+    df$aSym <- conditionsMatrix$aSym[num]
+    df$approach <- approach
+    # save df into the desktop
+    saveRDS(df, 
+            paste(approach, 
+                  "_Summarize_",
+                  num,
+                  ".RDS",
+                  sep = ""))
+  }
+}
+
+
