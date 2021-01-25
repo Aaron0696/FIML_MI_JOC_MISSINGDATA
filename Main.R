@@ -11,8 +11,8 @@ library(doRNG)
 
 # approach to use
 approach <- "JOC_FIML"
-approach <- "FCS_FIML"
-approach <- "EMB_FIML"
+# approach <- "FCS_FIML"
+# approach <- "EMB_FIML"
 # approach <- "FCS_WLSMV"
 # approach <- "FCS_MLM" # no longer included in the manuscript
 # approach <- "EMB_WLSMV"
@@ -267,7 +267,7 @@ for(num in 1:nrow(conditionsMatrix)){
   df$numCat <- conditionsMatrix$numCat[num]
   df$aSym <- conditionsMatrix$aSym[num]
   df$approach <- approach
-  # save df into the desktop
+  # save df into the working directory
   saveRDS(df, 
           paste(approach, 
                 "_Summarize_",
