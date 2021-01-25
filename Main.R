@@ -37,7 +37,7 @@ mxOption(NULL, "Default optimizer", "SLSQP")  # CSOLNP has trouble with threshol
 # Set Manipulated Dataset Factors -----------------------------------------
 # sample size
 sampleSize <- c(500)
-# mechanism of missingness ["MCAR", "MAR"]
+# mechanism of missingness ["MCAR", "MAR"], MAR is not implemented
 missingMech <- c("MCAR")
 # proportion of missing data
 missingProp <- c(0.1)
